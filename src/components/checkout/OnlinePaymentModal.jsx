@@ -133,13 +133,18 @@ export const OnlinePaymentModal = ({
 
   // Address State
   const [address, setAddress] = useState({
-    name: 'Ananya Sharma',
-    phone: '9876543210',
-    address: 'B-402, Lotus Greens, Park Street',
-    city: 'Mumbai',
-    pincode: '400001'
+    name: '',
+    phone: '',
+    address: '',
+    city: '',
+    pincode: ''
   });
-  const [isEditingAddress, setIsEditingAddress] = useState(false);
+  const [addressErrors, setAddressErrors] = useState({});
+
+  const updateAddressField = (field, value) => {
+    setAddress((currentAddress) => ({ ...currentAddress, [field]: value }));
+    setAddressErrors((currentErrors) => ({ ...currentErrors, [field]: '' }));
+  };
 
   // Order Details once confirmed
   const [orderSuccess, setOrderSuccess] = useState(null);
@@ -248,8 +253,30 @@ export const OnlinePaymentModal = ({
     note: 'Order'
   });
 
+  const validateAddress = () => {
+    const errors = {};
+    if (!address.name.trim()) errors.name = 'Enter your full name.';
+    if (!/^[6-9]\d{9}$/.test(address.phone.trim())) {
+      errors.phone = 'Enter a valid 10-digit mobile number.';
+    }
+    if (!address.address.trim()) errors.address = 'Enter your house and street address.';
+    if (!address.city.trim()) errors.city = 'Enter your city.';
+    if (!/^\d{6}$/.test(address.pincode.trim())) {
+      errors.pincode = 'Enter a valid 6-digit PIN code.';
+    }
+
+    setAddressErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      showToast('Please complete your delivery details.', 'warning');
+      return false;
+    }
+    return true;
+  };
+
   // 1. Trigger App Launch & Redirect to GPay / PhonePe / QR
   const handleInitiatePayment = async (e) => {
+    if (!validateAddress()) return;
+
     if (selectedMethod === 'razorpay') {
       if (e) e.preventDefault();
       setIsCreatingRazorpayLink(true);
@@ -1188,46 +1215,88 @@ export const OnlinePaymentModal = ({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 font-bold text-gray-900">
                       <Truck className="w-3.5 h-3.5 text-[#931b6e]" />
-                      <span>Delivering To</span>
+                      <span>Enter Your Details</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingAddress(!isEditingAddress)}
-                      className="text-[#931b6e] font-bold hover:underline cursor-pointer"
-                    >
-                      {isEditingAddress ? 'Save' : 'Change'}
-                    </button>
                   </div>
-
-                  {isEditingAddress ? (
-                    <div className="space-y-1.5 pt-1.5">
+                  <p className="text-[10px] text-gray-500">Add your contact and delivery address to continue. All fields are required.</p>
+                  <div className="grid grid-cols-2 gap-1.5 pt-1">
+                    <div className="min-w-0">
                       <input
                         type="text"
                         value={address.name}
-                        onChange={(e) => setAddress({ ...address, name: e.target.value })}
-                        placeholder="Name"
-                        className="w-full px-2.5 py-1 border rounded-lg text-xs"
+                        onChange={(e) => updateAddressField('name', e.target.value)}
+                        placeholder="Full name"
+                        aria-label="Full name"
+                        aria-invalid={Boolean(addressErrors.name)}
+                        aria-describedby={addressErrors.name ? 'delivery-name-error' : undefined}
+                        required
+                        className={`w-full min-w-0 px-2.5 py-1.5 border rounded-lg text-xs ${addressErrors.name ? 'border-red-500' : 'border-gray-300'}`}
                       />
+                      {addressErrors.name && <p id="delivery-name-error" className="mt-1 text-[10px] text-red-600">{addressErrors.name}</p>}
+                    </div>
+                    <div className="min-w-0">
                       <input
                         type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
+                        pattern="[6-9][0-9]{9}"
                         value={address.phone}
-                        onChange={(e) => setAddress({ ...address, phone: e.target.value })}
-                        placeholder="Phone"
-                        className="w-full px-2.5 py-1 border rounded-lg text-xs"
+                        onChange={(e) => updateAddressField('phone', e.target.value)}
+                        placeholder="10-digit phone number"
+                        aria-label="Phone number"
+                        aria-invalid={Boolean(addressErrors.phone)}
+                        aria-describedby={addressErrors.phone ? 'delivery-phone-error' : undefined}
+                        required
+                        className={`w-full min-w-0 px-2.5 py-1.5 border rounded-lg text-xs ${addressErrors.phone ? 'border-red-500' : 'border-gray-300'}`}
                       />
+                      {addressErrors.phone && <p id="delivery-phone-error" className="mt-1 text-[10px] text-red-600">{addressErrors.phone}</p>}
+                    </div>
+                    <div className="col-span-2 min-w-0">
                       <input
                         type="text"
                         value={address.address}
-                        onChange={(e) => setAddress({ ...address, address: e.target.value })}
-                        placeholder="House / Street"
-                        className="w-full px-2.5 py-1 border rounded-lg text-xs"
+                        onChange={(e) => updateAddressField('address', e.target.value)}
+                        placeholder="House / street address"
+                        aria-label="House or street address"
+                        aria-invalid={Boolean(addressErrors.address)}
+                        aria-describedby={addressErrors.address ? 'delivery-address-error' : undefined}
+                        required
+                        className={`w-full min-w-0 px-2.5 py-1.5 border rounded-lg text-xs ${addressErrors.address ? 'border-red-500' : 'border-gray-300'}`}
                       />
+                      {addressErrors.address && <p id="delivery-address-error" className="mt-1 text-[10px] text-red-600">{addressErrors.address}</p>}
                     </div>
-                  ) : (
-                    <p className="text-gray-600 text-[11px] leading-tight">
-                      <strong>{address.name}</strong> ({address.phone}) • {address.address}, {address.city} - {address.pincode}
-                    </p>
-                  )}
+                    <div className="min-w-0">
+                      <input
+                        type="text"
+                        value={address.city}
+                        onChange={(e) => updateAddressField('city', e.target.value)}
+                        placeholder="City"
+                        aria-label="City"
+                        aria-invalid={Boolean(addressErrors.city)}
+                        aria-describedby={addressErrors.city ? 'delivery-city-error' : undefined}
+                        required
+                        className={`w-full min-w-0 px-2.5 py-1.5 border rounded-lg text-xs ${addressErrors.city ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                      {addressErrors.city && <p id="delivery-city-error" className="mt-1 text-[10px] text-red-600">{addressErrors.city}</p>}
+                    </div>
+                    <div className="min-w-0">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        pattern="[0-9]{6}"
+                        value={address.pincode}
+                        onChange={(e) => updateAddressField('pincode', e.target.value)}
+                        placeholder="6-digit PIN code"
+                        aria-label="PIN code"
+                        aria-invalid={Boolean(addressErrors.pincode)}
+                        aria-describedby={addressErrors.pincode ? 'delivery-pincode-error' : undefined}
+                        required
+                        className={`w-full min-w-0 px-2.5 py-1.5 border rounded-lg text-xs ${addressErrors.pincode ? 'border-red-500' : 'border-gray-300'}`}
+                      />
+                      {addressErrors.pincode && <p id="delivery-pincode-error" className="mt-1 text-[10px] text-red-600">{addressErrors.pincode}</p>}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Strict Notice: COD NOT AVAILABLE AT YOUR LOCATION */}
